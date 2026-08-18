@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRINKS · Reporte Eventuales</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────── */
+  :root {
+    --navy:    #0d1117;
+    --navy2:   #161b22;
+    --navy3:   #21262d;
+    --border:  #30363d;
+    --red:     #c0392b;
+    --red2:    #e74c3c;
+    --red-dim: rgba(192,57,43,0.12);
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --white:   #ffffff;
+    --success: #2ea043;
+    --warn:    #d29922;
+    --radius:  6px;
+    --font:    'Inter', system-ui, sans-serif;
+    --mono:    'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  header {
+    background: var(--navy2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  .logo-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .api-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .dot.ok  { background: var(--success); }
+  .dot.err { background: var(--red2); }
+
+  nav {
+    background: var(--navy2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+  }
+
+  .tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--red); }
+
+  main { flex: 1; padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Config banner ───────────────────────────────────── */
+  .config-banner {
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .config-banner .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+  .config-fields {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  /* ── Cards / sections ────────────────────────────────── */
+  .card {
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 16px;
+  }
+
+  /* ── Form ────────────────────────────────────────────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.span2 { grid-column: span 2; }
+  .form-group.span3 { grid-column: span 3; }
+
+  label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  input, select, textarea {
+    background: var(--navy3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 8px 10px;
+    transition: border-color .15s;
+    width: 100%;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--red);
+  }
+
+  input[type="date"] { color-scheme: dark; }
+
+  select option { background: var(--navy3); }
+
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* ── Buttons ─────────────────────────────────────────── */
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover  { opacity: .85; }
+  .btn:active { transform: scale(.97); }
+
+  .btn-primary { background: var(--red); color: #fff; }
+  .btn-ghost   { background: var(--navy3); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger  { background: rgba(231,76,60,.15); color: var(--red2); border: 1px solid rgba(231,76,60,.3); }
+  .btn-sm      { padding: 4px 10px; font-size: 12px; }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Filters ─────────────────────────────────────────── */
+  .filters {
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .filters .form-group { flex: 1; min-width: 150px; }
+
+  /* ── Table ───────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .table-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-count {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    background: var(--navy3);
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+  }
+
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: top;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+
+  .badge-ruta    { background: rgba(192,57,43,.18); color: #e57373; }
+  .badge-service { background: rgba(46,160,67,.15); color: #56d364; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .big { font-size: 32px; margin-bottom: 8px; }
+  .empty-state p    { font-size: 13px; }
+
+  /* ── Contrato SAC ────────────────────────────────────── */
+  .contrato-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+
+  .contrato-card {
+    background: var(--navy3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    transition: border-color .15s;
+    cursor: default;
+  }
+
+  .contrato-card:hover { border-color: var(--red); }
+
+  .contrato-card .cc-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .contrato-card .cc-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .contrato-card .cc-client {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .contrato-card .cc-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .cc-tag {
+    font-size: 11px;
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--muted);
+  }
+
+  /* ── Toast ───────────────────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--navy3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    font-size: 13px;
+    max-width: 320px;
+    z-index: 999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: transform .25s ease, opacity .25s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.ok   { border-left: 3px solid var(--success); }
+  #toast.err  { border-left: 3px solid var(--red2); }
+
+  /* ── Loader ──────────────────────────────────────────── */
+  .loader {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-row td { text-align: center; padding: 40px; color: var(--muted); }
+
+  /* ── Responsive ──────────────────────────────────────── */
+  @media (max-width: 768px) {
+    main { padding: 16px; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .form-group.span2, .form-group.span3 { grid-column: span 2; }
+    td { max-width: 120px; }
+  }
+
+  @media (max-width: 480px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.span2, .form-group.span3 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-badge">BRINKS</span>
+      Reporte de Eventuales · DUCIT
+    </div>
+    <div class="header-right">
+      <div class="api-status">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Sin configurar</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <nav>
+    <div class="tab active" data-tab="cargar">＋ Cargar Eventual</div>
+    <div class="tab" data-tab="consultar">🔍 Consultar</div>
+    <div class="tab" data-tab="contratos">📋 Contrato SAC</div>
+    <div class="tab" data-tab="config">⚙ Config</div>
+  </nav>
+
+  <main>
+
+    <!-- ════════ CONFIG ════════ -->
+    <div class="panel" id="panel-config">
+      <div class="card">
+        <div class="card-title">Conexión con Google Sheets</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6">
+          Pegá la URL de tu Apps Script desplegado como Web App.<br>
+          Esta URL se guarda en tu navegador (localStorage).
+        </p>
+        <div class="form-grid">
+          <div class="form-group span3">
+            <label>URL del Apps Script (Web App)</label>
+            <input type="url" id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveConfig()">Guardar y conectar</button>
+          <button class="btn btn-ghost" onclick="testConnection()">Probar conexión</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Instrucciones de setup</div>
+        <ol style="color:var(--muted);font-size:13px;line-height:2;padding-left:20px">
+          <li>Abrí <a href="https://sheets.new" target="_blank" style="color:var(--red)">sheets.new</a> y creá un Google Sheet nuevo</li>
+          <li>Menú <strong style="color:var(--text)">Extensions → Apps Script</strong></li>
+          <li>Borrá el código de ejemplo y pegá el contenido de <code style="background:var(--navy3);padding:1px 5px;border-radius:3px">apps-script-backend.js</code></li>
+          <li>Guardá (Ctrl+S) y ejecutá la función <code style="background:var(--navy3);padding:1px 5px;border-radius:3px">setupSheets</code> una vez para crear las hojas</li>
+          <li>Menú <strong style="color:var(--text)">Deploy → New deployment → Web app</strong></li>
+          <li>Execute as: <strong style="color:var(--text)">Me</strong> · Who has access: <strong style="color:var(--text)">Anyone</strong></li>
+          <li>Copiá la URL y pegala arriba</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ════════ CARGAR ════════ -->
+    <div class="panel active" id="panel-cargar">
+      <div id="noCfgBanner" class="config-banner" style="display:none">
+        <span class="icon">⚠️</span>
+        <div>
+          <strong>Configuración pendiente</strong>
+          <p style="color:var(--muted);font-size:13px;margin-top:2px">Configurá la URL del Apps Script en la pestaña <strong>Config</strong> para guardar datos.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Nuevo Eventual</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fecha *</label>
+            <input type="date" id="f_fecha" required>
+          </div>
+          <div class="form-group">
+            <label>Hora Solicitud</label>
+            <input type="time" id="f_hora">
+          </div>
+          <div class="form-group">
+            <label>Ruta *</label>
+            <input type="text" id="f_ruta" placeholder="RE1, 902, RD1…" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Agente *</label>
+            <input type="text" id="f_agente" placeholder="Código de agente" style="text-transform:uppercase">
+          </div>
+          <div class="form-group span2">
+            <label>Cliente *</label>
+            <input type="text" id="f_cliente" placeholder="Nombre del grupo / banco" style="text-transform:uppercase">
+          </div>
+          <div class="form-group span2">
+            <label>Descripción (sucursal)</label>
+            <input type="text" id="f_desc" placeholder="BCO SANTANDER RIO BELGRANO…" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Tipo de Servicio</label>
+            <select id="f_servicio">
+              <option value="">— Seleccionar —</option>
+              <option>LEVANTE</option>
+              <option>ENTREGA EMERGENCIA</option>
+              <option>RECAUDA CAMBIO</option>
+              <option>ATM REPOSICIÓN EMERGENCIA</option>
+              <option>ATM SERVICIO ADICIONAL</option>
+              <option>ATM VACIADO</option>
+              <option>ATM LEVANTE REMESA</option>
+              <option>ATM ENTREGA REMANENTE</option>
+              <option>ATM RECAUDACION</option>
+              <option>ATM MANTENIMIENTO 1° NIVEL</option>
+              <option>ENTREGA DE INSTRUCCIÓN</option>
+              <option>ENTREGAS DE CAMBIO</option>
+              <option>RECAUDACIÓN CON PROCESO</option>
+              <option>ENVÍO CON ARMADO</option>
+              <option>PASES AÉREOS</option>
+              <option>PUERTA A PUERTA</option>
+              <option>COMPRA CAMBIO</option>
+              <option>CAMBIO DE RUTA</option>
+              <option>PERNOCTE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sucursal Principal</label>
+            <input type="text" id="f_sucursal" placeholder="Nombre sucursal" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Cargado Por</label>
+            <input type="text" id="f_cargadoPor" placeholder="Nombre" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Pedido Por</label>
+            <input type="text" id="f_pedidoPor" placeholder="Nombre" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Área Responsable</label>
+            <input type="text" id="f_area" placeholder="TB, SAC, PROCESO…" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label>Causa</label>
+            <input type="text" id="f_causa" placeholder="Motivo del eventual" style="text-transform:uppercase">
+          </div>
+          <div class="form-group span3">
+            <label>Observación</label>
+            <textarea id="f_obs" placeholder="Observaciones adicionales…"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="submitEventual()">
+            <span>Guardar Eventual</span>
+          </button>
+          <button class="btn btn-ghost" onclick="clearForm()">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CONSULTAR ════════ -->
+    <div class="panel" id="panel-consultar">
+      <div class="filters">
+        <div class="form-group">
+          <label>Fecha desde</label>
+          <input type="date" id="q_fechaDesde">
+        </div>
+        <div class="form-group">
+          <label>Fecha hasta</label>
+          <input type="date" id="q_fechaHasta">
+        </div>
+        <div class="form-group">
+          <label>Ruta</label>
+          <input type="text" id="q_ruta" placeholder="RE1, 902…">
+        </div>
+        <div class="form-group">
+          <label>Agente</label>
+          <input type="text" id="q_agente" placeholder="Código agente">
+        </div>
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" id="q_cliente" placeholder="Banco, empresa…">
+        </div>
+        <div class="form-group">
+          <label>Tipo Servicio</label>
+          <select id="q_servicio">
+            <option value="">Todos</option>
+            <option>LEVANTE</option>
+            <option>ENTREGA EMERGENCIA</option>
+            <option>RECAUDA CAMBIO</option>
+            <option>ATM REPOSICIÓN EMERGENCIA</option>
+            <option>ATM SERVICIO ADICIONAL</option>
+            <option>ATM VACIADO</option>
+            <option>ATM LEVANTE REMESA</option>
+            <option>ATM ENTREGA REMANENTE</option>
+            <option>ENTREGA DE INSTRUCCIÓN</option>
+            <option>ENTREGAS DE CAMBIO</option>
+            <option>RECAUDACIÓN CON PROCESO</option>
+            <option>ENVÍO CON ARMADO</option>
+            <option>PASES AÉREOS</option>
+            <option>PUERTA A PUERTA</option>
+            <option>PERNOCTE</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button class="btn btn-primary" onclick="buscarEvenTuales()">Buscar</button>
+          <button class="btn btn-ghost" onclick="limpiarFiltros()">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count" id="tableCount">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>FECHA</th>
+                <th>RUTA</th>
+                <th>AGENTE</th>
+                <th>CLIENTE</th>
+                <th>DESCRIPCIÓN</th>
+                <th>TIPO SERVICIO</th>
+                <th>CARGADO POR</th>
+                <th>PEDIDO POR</th>
+                <th>ÁREA</th>
+                <th>CAUSA</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="11" style="text-align:center;color:var(--muted);padding:40px">
+                  Usá los filtros y presioná Buscar
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CONTRATOS ════════ -->
+    <div class="panel" id="panel-contratos">
+      <div class="filters" style="margin-bottom:16px">
+        <div class="form-group" style="flex:1">
+          <label>Buscar parada / cliente</label>
+          <input type="text" id="q_contrato" placeholder="Nombre, ID, código…">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button class="btn btn-primary" onclick="buscarContratos()">Buscar</button>
+        </div>
+      </div>
+      <div class="contrato-grid" id="contratoGrid">
+        <div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:40px">
+          Buscá una parada o cliente en el Contrato SAC
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+let API_URL = localStorage.getItem("brinks_api_url") || "";
+let allRows = [];
+
+function saveConfig() {
+  API_URL = document.getElementById("apiUrl").value.trim();
+  if (!API_URL) { toast("Ingresá una URL válida", "err"); return; }
+  localStorage.setItem("brinks_api_url", API_URL);
+  testConnection();
+}
+
+async function testConnection() {
+  if (!API_URL) { setStatus(false, "Sin configurar"); return; }
+  setStatus(null, "Conectando…");
+  try {
+    const res = await api("getEvenTuales");
+    setStatus(true, "Conectado · Sheets OK");
+    toast("Conexión exitosa ✓", "ok");
+  } catch(e) {
+    setStatus(false, "Error de conexión");
+    toast("No se pudo conectar: " + e.message, "err");
+  }
+}
+
+function setStatus(ok, txt) {
+  const dot  = document.getElementById("statusDot");
+  const span = document.getElementById("statusText");
+  dot.className = "dot" + (ok === true ? " ok" : ok === false ? " err" : "");
+  span.textContent = txt;
+}
+
+// ── API helper (JSONP para evitar CORS con file://) ─────────
+let _cbCount = 0;
+
+function api(action, params = {}) {
+  if (!API_URL) return Promise.reject(new Error("URL no configurada"));
+  return new Promise((resolve, reject) => {
+    const cbName = "__apicb" + (++_cbCount);
+    const url = new URL(API_URL);
+    url.searchParams.set("action", action);
+    url.searchParams.set("callback", cbName);
+    Object.entries(params).forEach(([k,v]) => v && url.searchParams.set(k, v));
+
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error("Timeout — verificá la URL y los permisos del deploy"));
+    }, 12000);
+
+    window[cbName] = (json) => {
+      clearTimeout(timer);
+      delete window[cbName];
+      script.remove();
+      if (!json.ok) reject(new Error(json.error || "Error desconocido"));
+      else resolve(json.data);
+    };
+
+    const script = document.createElement("script");
+    script.src = url.toString();
+    script.onerror = () => {
+      clearTimeout(timer);
+      delete window[cbName];
+      reject(new Error("No se pudo cargar el script — verificá la URL"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function apiPost(body) {
+  if (!API_URL) return Promise.reject(new Error("URL no configurada"));
+  return new Promise((resolve, reject) => {
+    const cbName = "__apicb" + (++_cbCount);
+    const url = new URL(API_URL);
+    url.searchParams.set("callback", cbName);
+    // Enviamos el body como parámetro GET (Apps Script lee e.parameter)
+    url.searchParams.set("action", body.action);
+    url.searchParams.set("payload", JSON.stringify(body));
+
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error("Timeout"));
+    }, 12000);
+
+    window[cbName] = (json) => {
+      clearTimeout(timer);
+      delete window[cbName];
+      script.remove();
+      if (!json.ok) reject(new Error(json.error || "Error desconocido"));
+      else resolve(json.data);
+    };
+
+    const script = document.createElement("script");
+    script.src = url.toString();
+    script.onerror = () => { clearTimeout(timer); delete window[cbName]; reject(new Error("Error de red")); };
+    document.head.appendChild(script);
+  });
+}
+
+// ── Tabs ────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("panel-" + t.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Form: Cargar Eventual ───────────────────────────────────
+function todayISO() {
+  return new Date().toISOString().split("T")[0];
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("f_fecha").value = todayISO();
+  if (API_URL) {
+    document.getElementById("apiUrl").value = API_URL;
+    testConnection();
+  } else {
+    document.getElementById("noCfgBanner").style.display = "flex";
+  }
+});
+
+async function submitEventual() {
+  const fecha = document.getElementById("f_fecha").value;
+  const ruta  = document.getElementById("f_ruta").value.trim();
+  const agente = document.getElementById("f_agente").value.trim();
+  const cliente = document.getElementById("f_cliente").value.trim();
+
+  if (!fecha || !ruta || !agente || !cliente) {
+    toast("Completá los campos obligatorios (*)", "err");
+    return;
+  }
+
+  if (!API_URL) {
+    toast("Configurá la URL del Apps Script primero", "err");
+    // switch to config tab
+    document.querySelector('[data-tab="config"]').click();
+    return;
+  }
+
+  const data = {
+    "FECHA":             fecha,
+    "RUTA":              ruta.toUpperCase(),
+    "AGENTE":            agente.toUpperCase(),
+    "CLIENTE":           cliente.toUpperCase(),
+    "DESCRIPCION":       document.getElementById("f_desc").value.toUpperCase(),
+    "CARGADO POR":       document.getElementById("f_cargadoPor").value.toUpperCase(),
+    "PEDIDO POR":        document.getElementById("f_pedidoPor").value.toUpperCase(),
+    "OBSERVACION":       document.getElementById("f_obs").value,
+    "HORA SOLICITUD":    document.getElementById("f_hora").value,
+    "TIPO DE SERVICIO":  document.getElementById("f_servicio").value,
+    "SUCURSAL PRINCIPAL":document.getElementById("f_sucursal").value.toUpperCase(),
+    "AREA RESPONSABLE":  document.getElementById("f_area").value.toUpperCase(),
+    "CAUSA":             document.getElementById("f_causa").value.toUpperCase()
+  };
+
+  try {
+    await apiPost({ action: "addEventual", data });
+    toast("Eventual guardado ✓", "ok");
+    clearForm();
+  } catch(e) {
+    toast("Error: " + e.message, "err");
+  }
+}
+
+function clearForm() {
+  ["f_ruta","f_agente","f_cliente","f_desc","f_cargadoPor",
+   "f_pedidoPor","f_obs","f_hora","f_sucursal","f_area","f_causa"]
+    .forEach(id => document.getElementById(id).value = "");
+  document.getElementById("f_servicio").value = "";
+  document.getElementById("f_fecha").value = todayISO();
+}
+
+// ── Consultar ───────────────────────────────────────────────
+async function buscarEvenTuales() {
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="11"><div class="loader"></div> Cargando…</td></tr>';
+
+  const params = {
+    ruta:     document.getElementById("q_ruta").value.trim(),
+    agente:   document.getElementById("q_agente").value.trim(),
+    cliente:  document.getElementById("q_cliente").value.trim(),
+    servicio: document.getElementById("q_servicio").value
+  };
+
+  try {
+    let rows = await api("getEvenTuales", params);
+
+    // Filtro de fechas en cliente (más flexible)
+    const desde = document.getElementById("q_fechaDesde").value;
+    const hasta = document.getElementById("q_fechaHasta").value;
+    if (desde || hasta) {
+      rows = rows.filter(r => {
+        const f = new Date(r["FECHA"]);
+        if (isNaN(f)) return true;
+        if (desde && f < new Date(desde)) return false;
+        if (hasta && f > new Date(hasta + "T23:59:59")) return false;
+        return true;
+      });
+    }
+
+    allRows = rows;
+    renderTable(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--red2);padding:40px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("tableBody");
+  document.getElementById("tableCount").textContent = `${rows.length} registro${rows.length !== 1 ? "s" : ""}`;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="11">
+      <div class="empty-state"><div class="big">🔍</div><p>Sin resultados para los filtros aplicados</p></div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const fecha = r["FECHA"] ? new Date(r["FECHA"]).toLocaleDateString("es-AR") : "—";
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px">${fecha}</td>
+      <td><span class="badge badge-ruta">${r["RUTA"] || "—"}</span></td>
+      <td style="font-family:var(--mono)">${r["AGENTE"] || "—"}</td>
+      <td title="${r["CLIENTE"] || ""}">${r["CLIENTE"] || "—"}</td>
+      <td title="${r["DESCRIPCION"] || ""}">${r["DESCRIPCION"] || "—"}</td>
+      <td><span class="badge badge-service" title="${r["TIPO DE SERVICIO"] || ""}">${(r["TIPO DE SERVICIO"] || "—").slice(0,22)}</span></td>
+      <td>${r["CARGADO POR"] || "—"}</td>
+      <td>${r["PEDIDO POR"] || "—"}</td>
+      <td>${r["AREA RESPONSABLE"] || "—"}</td>
+      <td title="${r["CAUSA"] || ""}">${r["CAUSA"] || "—"}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="eliminarRow(${r._row}, this)">✕</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function eliminarRow(row, btn) {
+  if (!confirm("¿Eliminar este registro?")) return;
+  btn.disabled = true;
+  try {
+    await apiPost({ action: "deleteEventual", row });
+    toast("Registro eliminado", "ok");
+    buscarEvenTuales();
+  } catch(e) {
+    toast("Error: " + e.message, "err");
+    btn.disabled = false;
+  }
+}
+
+function limpiarFiltros() {
+  ["q_fechaDesde","q_fechaHasta","q_ruta","q_agente","q_cliente"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("q_servicio").value = "";
+  document.getElementById("tableBody").innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">Usá los filtros y presioná Buscar</td></tr>`;
+  document.getElementById("tableCount").textContent = "—";
+  allRows = [];
+}
+
+function exportCSV() {
+  if (!allRows.length) { toast("Sin datos para exportar", "err"); return; }
+  const headers = ["FECHA","RUTA","AGENTE","CLIENTE","DESCRIPCION",
+    "TIPO DE SERVICIO","CARGADO POR","PEDIDO POR","AREA RESPONSABLE","CAUSA","OBSERVACION"];
+  const csv = [
+    headers.join(","),
+    ...allRows.map(r => headers.map(h => `"${(r[h]||"").toString().replace(/"/g,'""')}"`).join(","))
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `eventuales_${todayISO()}.csv`;
+  a.click();
+}
+
+// ── Contratos SAC ───────────────────────────────────────────
+async function buscarContratos() {
+  const q = document.getElementById("q_contrato").value.trim();
+  const grid = document.getElementById("contratoGrid");
+  grid.innerHTML = '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:40px"><div class="loader" style="margin:auto"></div></div>';
+
+  try {
+    const rows = await api("getContratos", { q });
+    if (!rows.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:40px">Sin resultados</div>';
+      return;
+    }
+    grid.innerHTML = rows.map(r => `
+      <div class="contrato-card">
+        <div class="cc-id">#${r["ID"] || "—"} · ${r["ParadaCliente"] || ""}</div>
+        <div class="cc-name">${r["NombreParada"] || "—"}</div>
+        <div class="cc-client">${r["Cliente"] || r["GrupoCliente"] || "—"}</div>
+        <div class="cc-meta">
+          ${r["Region"]  ? `<span class="cc-tag">${r["Region"]}</span>` : ""}
+          ${r["Servicio"] ? `<span class="cc-tag">${r["Servicio"]}</span>` : ""}
+          ${r["TipoFrecuencia"] ? `<span class="cc-tag">${r["TipoFrecuencia"]}</span>` : ""}
+          ${r["EstadoParada"] ? `<span class="cc-tag">${r["EstadoParada"]}</span>` : ""}
+        </div>
+        ${r["Direccion"] ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">${r["Direccion"]} ${r["Nro"]||""}, ${r["Localidad"]||""}</div>` : ""}
+      </div>
+    `).join("");
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--red2);font-size:13px;grid-column:1/-1;text-align:center;padding:40px">Error: ${e.message}</div>`;
+  }
+}
+
+// Enter en buscador contratos
+document.getElementById("q_contrato")?.addEventListener("keydown", e => {
+  if (e.key === "Enter") buscarContratos();
+});
+
+// Enter en filtros consultar
+["q_ruta","q_agente","q_cliente"].forEach(id => {
+  document.getElementById(id)?.addEventListener("keydown", e => {
+    if (e.key === "Enter") buscarEvenTuales();
+  });
+});
+
+// ── Toast ───────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = "ok") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className   = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ""; }, 3000);
+}
+</script>
+</body>
+</html>
