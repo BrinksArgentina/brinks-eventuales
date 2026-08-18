@@ -447,30 +447,10 @@
     <div class="tab active" data-tab="cargar">＋ Cargar Eventual</div>
     <div class="tab" data-tab="consultar">🔍 Consultar</div>
     <div class="tab" data-tab="contratos">📋 Contrato SAC</div>
-    <div class="tab" data-tab="config">⚙ Config</div>
+    
   </nav>
 
   <main>
-
-    <!-- ════════ CONFIG ════════ -->
-    <div class="panel" id="panel-config">
-      <div class="card">
-        <div class="card-title">Conexión con Google Sheets</div>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6">
-          Pegá la URL de tu Apps Script desplegado como Web App.<br>
-          Esta URL se guarda en tu navegador (localStorage).
-        </p>
-        <div class="form-grid">
-          <div class="form-group span3">
-            <label>URL del Apps Script (Web App)</label>
-            <input type="url" id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-primary" onclick="saveConfig()">Guardar y conectar</button>
-          <button class="btn btn-ghost" onclick="testConnection()">Probar conexión</button>
-        </div>
-      </div>
 
       <div class="card">
         <div class="card-title">Instrucciones de setup</div>
@@ -488,15 +468,7 @@
 
     <!-- ════════ CARGAR ════════ -->
     <div class="panel active" id="panel-cargar">
-      <div id="noCfgBanner" class="config-banner" style="display:none">
-        <span class="icon">⚠️</span>
-        <div>
-          <strong>Configuración pendiente</strong>
-          <p style="color:var(--muted);font-size:13px;margin-top:2px">Configurá la URL del Apps Script en la pestaña <strong>Config</strong> para guardar datos.</p>
-        </div>
-      </div>
-
-      <div class="card">
+<div class="card">
         <div class="card-title">Nuevo Eventual</div>
         <div class="form-grid">
           <div class="form-group">
@@ -692,26 +664,16 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────
-let API_URL = localStorage.getItem("brinks_api_url") || "";
+const API_URL = "https://script.google.com/macros/s/AKfycbybDF07YbQQltS9YGkydZ4xRaeLmnG6MBWo95r3kFjLFNcu253V-xvOX-zrwQoXvHgF/exec";
 let allRows = [];
 
-function saveConfig() {
-  API_URL = document.getElementById("apiUrl").value.trim();
-  if (!API_URL) { toast("Ingresá una URL válida", "err"); return; }
-  localStorage.setItem("brinks_api_url", API_URL);
-  testConnection();
-}
-
 async function testConnection() {
-  if (!API_URL) { setStatus(false, "Sin configurar"); return; }
   setStatus(null, "Conectando…");
   try {
-    const res = await api("getEvenTuales");
+    await api("getEvenTuales");
     setStatus(true, "Conectado · Sheets OK");
-    toast("Conexión exitosa ✓", "ok");
   } catch(e) {
     setStatus(false, "Error de conexión");
-    toast("No se pudo conectar: " + e.message, "err");
   }
 }
 
@@ -805,12 +767,7 @@ function todayISO() {
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("f_fecha").value = todayISO();
-  if (API_URL) {
-    document.getElementById("apiUrl").value = API_URL;
-    testConnection();
-  } else {
-    document.getElementById("noCfgBanner").style.display = "flex";
-  }
+  testConnection();
 });
 
 async function submitEventual() {
@@ -824,14 +781,7 @@ async function submitEventual() {
     return;
   }
 
-  if (!API_URL) {
-    toast("Configurá la URL del Apps Script primero", "err");
-    // switch to config tab
-    document.querySelector('[data-tab="config"]').click();
-    return;
-  }
-
-  const data = {
+const data = {
     "FECHA":             fecha,
     "RUTA":              ruta.toUpperCase(),
     "AGENTE":            agente.toUpperCase(),
