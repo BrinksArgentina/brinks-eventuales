@@ -154,7 +154,7 @@ select option{background:var(--navy3)}
             <tr>
               <th>Sucursal</th><th>RutId</th><th>Fecha</th><th>Parada</th>
               <th>ParId</th><th>Nombre Parada</th><th>Cliente</th>
-              <th>PU</th><th>DL</th><th>Observación</th>
+              <th>Tipo Servicio</th><th>Observación</th>
             </tr>
           </thead>
           <tbody id="previewBody"></tbody>
@@ -204,7 +204,7 @@ select option{background:var(--navy3)}
           <tr>
             <th>Fecha</th><th>Sucursal</th><th>RutId</th><th>Parada</th>
             <th>ParId</th><th>Nombre Parada</th><th>Cliente</th>
-            <th>PU</th><th>DL</th><th>Observación</th>
+            <th>Tipo Servicio</th><th>Observación</th>
           </tr>
         </thead>
         <tbody id="tableBody">
@@ -368,8 +368,7 @@ function renderPreview(datos) {
       <td style="font-family:var(--mono)">${r.parid}</td>
       <td>${r.nombreParada}</td>
       <td>${r.cliente}</td>
-      <td>${r.pu ? '<span class="badge badge-pu">PU</span>' : ''}</td>
-      <td>${r.dl ? '<span class="badge badge-dl">DL</span>' : ''}</td>
+      <td>${tipoServicio(r.pu, r.dl)}</td>
       <td><input class="obs-input" placeholder="Observación…" oninput="eventualesActuales[${i}].obs=this.value"></td>
     </tr>
   `).join("");
@@ -435,8 +434,7 @@ async function buscar() {
       <td style="font-family:var(--mono)">${r.PARID||r.parid||"—"}</td>
       <td>${r.NOMBREPARADA||r.nombreParada||"—"}</td>
       <td>${r.CLIENTE||r.cliente||"—"}</td>
-      <td>${(r.PU||r.pu) ? '<span class="badge badge-pu">PU</span>' : ''}</td>
-      <td>${(r.DL||r.dl) ? '<span class="badge badge-dl">DL</span>' : ''}</td>
+      <td>${tipoServicio(r.PU||r.pu, r.DL||r.dl)}</td>
       <td>${r.OBS||r.obs||""}</td>
     </tr>`).join("");
   } catch(e) {
@@ -467,6 +465,14 @@ function exportCSVConsulta() {
   if (!consultaRows.length) { toast("Sin datos", "err"); return; }
   toCSV(consultaRows, ["Fecha","Sucursal","RutId","Parada","ParId","NombreParada","Cliente","PU","DL","Obs"],
     ["DIAFEC","SUCURSAL","RUTID","PARADA","PARID","NOMBREPARADA","CLIENTE","PU","DL","OBS"]);
+}
+
+// ── TIPO SERVICIO ────────────────────────────────────────────
+function tipoServicio(pu, dl) {
+  const parts = [];
+  if (pu && String(pu).trim() !== '') parts.push('<span class="badge badge-pu">LEVANTE</span>');
+  if (dl && String(dl).trim() !== '') parts.push('<span class="badge badge-dl">ENTREGA</span>');
+  return parts.join(' ') || '—';
 }
 
 // ── TOAST ────────────────────────────────────────────────────
