@@ -393,7 +393,7 @@ function procesarArchivo(file) {
       const iPU    = idx("PU");
       const iDL    = idx("DL");
 
-      const datos = raw.slice(headerRow + 1)
+      const todosRutas = raw.slice(headerRow + 1)
         .filter(r => r.some(c => c !== ""))
         .map(r => ({
           sucursal:     String(r[iSuc]  || "").trim(),
@@ -416,8 +416,11 @@ function procesarArchivo(file) {
           dl:           String(r[iDL]   || "").trim(),
           obs:          ""
         }))
-        .filter(r => r.rutid !== "" && r.rutid.toUpperCase() !== "A01")
-        .filter(r => r.parada % 10 !== 0 && r.parada > 0);
+        .filter(r => r.rutid !== "" && !/^[AG0]/i.test(r.rutid));
+
+      const datos       = todosRutas.filter(r => r.parada % 10 !== 0 && r.parada > 0);
+      const programados = todosRutas.filter(r => r.parada % 10 === 0 && r.parada > 0);
+      window._programadosCargados = programados;
 
       if (!datos.length) { toast("No se detectaron eventuales en el archivo", "err"); return; }
 
@@ -471,6 +474,10 @@ async function guardarEvenTuales() {
     console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
     const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
     console.log("Resultado backend:", resultado);
+    // Guardar programados en Sheet
+    if (window._programadosCargados && window._programadosCargados.length) {
+      await apiPost({ action: "addProgramados", rows: window._programadosCargados });
+    }
     toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
     setTimeout(() => { btn.disabled = false; btn.innerHTML = "💾 Guardar en Sheets"; }, 3000);
@@ -706,21 +713,47 @@ async function cargarDashboard() {
       scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
   });
 
-  // ── Chart tipo servicio ───────────────────────────────────
-  const soloLevante = rows.filter(r => String(r.TIPOSERVICIO||'') === 'LEVANTE').length;
-  const soloEntrega = rows.filter(r => String(r.TIPOSERVICIO||'') === 'ENTREGA').length;
-  const ambos       = rows.filter(r => String(r.TIPOSERVICIO||'').includes('LEVANTE') && String(r.TIPOSERVICIO||'').includes('ENTREGA')).length;
+  // ── Chart programados vs eventuales ─────────────────────────
+  let totalProg = 0;
+  try {
+    const progData = await api('getProgramados', mes ? { mes } : {});
+    // Filtrar por mes si aplica
+    let progRows = progData;
+    if (mes) {
+      const [yyyy, mm] = mes.split('-');
+      progRows = progData.filter(r => {
+        const f = String(r.DIAFEC||'');
+        const match = f.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        return match && match[2] === mm && match[3] === yyyy;
+      });
+    }
+    totalProg = progRows.length;
+  } catch(e) { totalProg = 0; }
 
   chartTipo = destroyChart(chartTipo);
   chartTipo = new Chart(document.getElementById('chart_tipo'), {
     type: 'doughnut',
     data: {
-      labels: ['Solo Levante', 'Solo Entrega', 'Levante + Entrega'],
-      datasets: [{ data: [soloLevante, soloEntrega, ambos],
-        backgroundColor: ['rgba(10,138,90,0.8)', 'rgba(196,122,0,0.8)', 'rgba(26,110,247,0.8)'],
+      labels: ['Programados', 'Eventuales'],
+      datasets: [{ data: [totalProg, total],
+        backgroundColor: ['rgba(26,110,247,0.8)', 'rgba(196,122,0,0.8)'],
         borderWidth: 2, borderColor: '#fff' }]
     },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const t = totalProg + total;
+              const pct = t > 0 ? ((ctx.parsed / t) * 100).toFixed(1) : 0;
+              return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
   });
 
   // ── Top rutas ─────────────────────────────────────────────
