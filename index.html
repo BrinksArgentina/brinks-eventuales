@@ -138,6 +138,7 @@ select option{background:var(--surface2)}
 <nav>
   <div class="tab active" data-tab="cargar">📥 Cargar Diario</div>
   <div class="tab" data-tab="consultar">🔍 Consultar</div>
+  <div class="tab" data-tab="programados">📤 Programados</div>
   <div class="tab" data-tab="dashboard">📊 Dashboard</div>
 </nav>
 
@@ -231,6 +232,38 @@ select option{background:var(--surface2)}
           <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:40px">Usá los filtros y presioná Buscar</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PROGRAMADOS ══ -->
+<div class="panel" id="panel-programados">
+  <div class="card">
+    <div class="card-title">Subir CSV de Programados</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+      Al guardar el Diario se descarga automáticamente el CSV de programados. Subílo acá para guardarlo en Sheets.
+    </p>
+    <div class="upload-zone" id="uploadZoneProg" onclick="document.getElementById('fileInputProg').click()">
+      <div class="icon">📤</div>
+      <strong>Click para seleccionar o arrastrá el CSV</strong>
+      <p>programados_dd-mm-yyyy.csv</p>
+    </div>
+    <input type="file" id="fileInputProg" accept=".csv" style="display:none">
+  </div>
+
+  <div id="progPreviewSection" style="display:none">
+    <div class="summary-bar" id="progSummaryBar"></div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <span class="table-count" id="progCount">—</span>
+        <button class="btn btn-primary" id="btnGuardarProg" onclick="guardarProgramados()">💾 Guardar en Sheets</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Fecha</th><th>Sucursal</th><th>RutId</th><th>Total Programados</th></tr></thead>
+          <tbody id="progBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -474,7 +507,7 @@ async function guardarEvenTuales() {
     console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
     const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
     console.log("Resultado backend:", resultado);
-    // Guardar resumen de programados en lotes de 20
+    // Generar y descargar CSV de programados automáticamente
     if (window._programadosCargados && window._programadosCargados.length) {
       const resumen = {};
       window._programadosCargados.forEach(r => {
@@ -482,10 +515,17 @@ async function guardarEvenTuales() {
         if (!resumen[key]) resumen[key] = { diafec: r.diafec, rutid: r.rutid, sucursal: r.sucursal, total: 0 };
         resumen[key].total++;
       });
-      const arr = Object.values(resumen);
-      for (let i = 0; i < arr.length; i += 20) {
-        await apiPost({ action: "addProgramados", resumen: arr.slice(i, i + 20) });
-      }
+      window._resumenProgramados = Object.values(resumen).sort((a,b) => a.rutid.localeCompare(b.rutid));
+      // Auto-descargar CSV
+      const header = 'SUCURSAL,RUTID,DIAFEC,TOTAL';
+      const rows = window._resumenProgramados.map(r => r.sucursal+','+r.rutid+','+r.diafec+','+r.total);
+      const csv = [header, ...rows].join('\n');
+      const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'programados_'+( window._resumenProgramados[0]?.diafec?.replace(/\//g,'-')||'hoy')+'.csv';
+      a.click();
+      toast('CSV de programados descargado — subilo en pestaña Programados', 'ok');
     }
     toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
@@ -621,6 +661,85 @@ function formatFecha(val) {
            d.getUTCFullYear();
   }
   return s;
+}
+
+// ── PROGRAMADOS CSV UPLOAD ───────────────────────────────────
+let programadosCSV = [];
+
+const zoneProg = document.getElementById('uploadZoneProg');
+const fileInputProg = document.getElementById('fileInputProg');
+
+zoneProg?.addEventListener('dragover', e => { e.preventDefault(); zoneProg.classList.add('drag'); });
+zoneProg?.addEventListener('dragleave', () => zoneProg.classList.remove('drag'));
+zoneProg?.addEventListener('drop', e => { e.preventDefault(); zoneProg.classList.remove('drag'); procesarCSVProg(e.dataTransfer.files[0]); });
+fileInputProg?.addEventListener('change', e => { if(e.target.files[0]) procesarCSVProg(e.target.files[0]); });
+
+function procesarCSVProg(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const lines = e.target.result.replace(/
+/g,'').split('
+').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^﻿/,''));
+      programadosCSV = lines.slice(1).map(line => {
+        const cols = line.split(',');
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = (cols[i]||'').trim());
+        return obj;
+      }).filter(r => r.RUTID);
+
+      if (!programadosCSV.length) { toast('CSV vacío o inválido', 'err'); return; }
+
+      const rutas = new Set(programadosCSV.map(r => r.RUTID)).size;
+      const fecha = programadosCSV[0]?.DIAFEC || '—';
+      const total = programadosCSV.reduce((s, r) => s + (parseInt(r.TOTAL)||0), 0);
+
+      document.getElementById('progSummaryBar').innerHTML = `
+        <div class="summary-card"><div class="val">${programadosCSV.length}</div><div class="lbl">Rutas</div></div>
+        <div class="summary-card"><div class="val">${total}</div><div class="lbl">Total programados</div></div>
+        <div class="summary-card"><div class="val" style="font-size:16px">${fecha}</div><div class="lbl">Fecha</div></div>
+      `;
+
+      document.getElementById('progCount').textContent = programadosCSV.length + ' registros';
+      document.getElementById('progBody').innerHTML = programadosCSV.map(r => `<tr>
+        <td style="font-family:var(--mono);font-size:12px">${r.DIAFEC}</td>
+        <td>${r.SUCURSAL}</td>
+        <td><span class="badge badge-ruta">${r.RUTID}</span></td>
+        <td style="text-align:center;font-weight:600">${r.TOTAL}</td>
+      </tr>`).join('');
+
+      document.getElementById('progPreviewSection').style.display = 'block';
+      toast(`${programadosCSV.length} rutas cargadas ✓`, 'ok');
+    } catch(ex) {
+      toast('Error: ' + ex.message, 'err');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function guardarProgramados() {
+  if (!programadosCSV.length) return;
+  const btn = document.getElementById('btnGuardarProg');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loader"></div> Guardando…';
+  try {
+    // Enviar en lotes de 20
+    for (let i = 0; i < programadosCSV.length; i += 20) {
+      const lote = programadosCSV.slice(i, i + 20).map(r => ({
+        sucursal: r.SUCURSAL, rutid: r.RUTID, diafec: r.DIAFEC, total: parseInt(r.TOTAL)||0
+      }));
+      await apiPost({ action: 'addProgramados', resumen: lote });
+    }
+    toast('Programados guardados en Sheets ✓', 'ok');
+    btn.innerHTML = '✓ Guardado';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = '💾 Guardar en Sheets'; }, 3000);
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.innerHTML = '💾 Guardar en Sheets';
+  }
 }
 
 // ── GUARDAR OBSERVACION ──────────────────────────────────────
