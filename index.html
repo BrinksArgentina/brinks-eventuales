@@ -531,7 +531,15 @@ async function buscar() {
       <td>${r.NOMBREPARADA||r.nombreParada||"—"}</td>
       <td>${r.CLIENTE||r.cliente||"—"}</td>
       <td>${r.TIPOSERVICIO||r.tiposervicio||"—"}</td>
-      <td>${r.OBS||r.obs||""}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input class="obs-input" value="${r.OBS||r.obs||""}" 
+            placeholder="Agregar observación…"
+            data-row="${r._row}"
+            onkeydown="if(event.key==='Enter') guardarObs(this)">
+          <button class="btn btn-ghost btn-sm" onclick="guardarObs(this.previousElementSibling)" title="Guardar">✓</button>
+        </div>
+      </td>
     </tr>`).join("");
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--red2);padding:40px">Error: ${e.message}</td></tr>`;
@@ -597,6 +605,26 @@ function formatFecha(val) {
            d.getUTCFullYear();
   }
   return s;
+}
+
+// ── GUARDAR OBSERVACION ──────────────────────────────────────
+async function guardarObs(input) {
+  const row = input.dataset.row;
+  const obs = input.value.trim();
+  if (!row) { toast('Error: fila no identificada', 'err'); return; }
+  const btn = input.nextElementSibling;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    await apiPost({ action: 'updateObs', row: parseInt(row), obs });
+    toast('Observación guardada ✓', 'ok');
+    btn.textContent = '✓';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '✓'; }, 2000);
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '✓';
+  }
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
