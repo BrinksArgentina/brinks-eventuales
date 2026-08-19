@@ -521,7 +521,7 @@ async function buscar() {
       <td style="font-family:var(--mono)">${r.PARID||r.parid||"—"}</td>
       <td>${r.NOMBREPARADA||r.nombreParada||"—"}</td>
       <td>${r.CLIENTE||r.cliente||"—"}</td>
-      <td>${tipoServicio(r.PU||r.pu, r.DL||r.dl)}</td>
+      <td>${r.TIPOSERVICIO||r.tiposervicio||"—"}</td>
       <td>${r.OBS||r.obs||""}</td>
     </tr>`).join("");
   } catch(e) {
