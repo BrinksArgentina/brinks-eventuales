@@ -474,13 +474,15 @@ async function guardarEvenTuales() {
     console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
     const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
     console.log("Resultado backend:", resultado);
-    // Guardar programados en lotes de 100
+    // Guardar resumen de programados (agrupado por fecha+rutid para minimizar payload)
     if (window._programadosCargados && window._programadosCargados.length) {
-      const loteSize = 100;
-      const prog = window._programadosCargados;
-      for (let i = 0; i < prog.length; i += loteSize) {
-        await apiPost({ action: "addProgramados", rows: prog.slice(i, i + loteSize) });
-      }
+      const resumen = {};
+      window._programadosCargados.forEach(r => {
+        const key = r.diafec + "|" + r.rutid;
+        if (!resumen[key]) resumen[key] = { diafec: r.diafec, rutid: r.rutid, sucursal: r.sucursal, total: 0 };
+        resumen[key].total++;
+      });
+      await apiPost({ action: "addProgramados", resumen: Object.values(resumen) });
     }
     toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
