@@ -474,9 +474,13 @@ async function guardarEvenTuales() {
     console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
     const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
     console.log("Resultado backend:", resultado);
-    // Guardar programados en Sheet
+    // Guardar programados en lotes de 100
     if (window._programadosCargados && window._programadosCargados.length) {
-      await apiPost({ action: "addProgramados", rows: window._programadosCargados });
+      const loteSize = 100;
+      const prog = window._programadosCargados;
+      for (let i = 0; i < prog.length; i += loteSize) {
+        await apiPost({ action: "addProgramados", rows: prog.slice(i, i + loteSize) });
+      }
     }
     toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
