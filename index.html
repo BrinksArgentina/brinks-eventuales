@@ -496,14 +496,20 @@ async function buscar() {
     const desde = document.getElementById("q_desde").value;
     const hasta = document.getElementById("q_hasta").value;
     if (desde || hasta) {
-      // Comparar como strings dd/mm/yyyy → convertir input yyyy-mm-dd a dd/mm/yyyy
-      const desdeStr = desde ? desde.split("-").reverse().join("/") : null;
-      const hastaStr = hasta ? hasta.split("-").reverse().join("/") : null;
+      // Convertir dd/mm/yyyy a yyyymmdd para comparar correctamente
+      function toSortable(ddmmyyyy) {
+        const p = ddmmyyyy.split("/");
+        if (p.length === 3) return p[2] + p[1] + p[0];
+        return ddmmyyyy.replace(/-/g, "");
+      }
+      const dDesdeN = desde ? desde.replace(/-/g, "") : null;
+      const dHastaN = hasta ? hasta.replace(/-/g, "") : null;
       rows = rows.filter(r => {
         const f = String(r["DIAFEC"] || r["diafec"] || "").trim();
         if (!f) return true;
-        if (desdeStr && f < desdeStr) return false;
-        if (hastaStr && f > hastaStr) return false;
+        const fN = toSortable(f);
+        if (dDesdeN && fN < dDesdeN) return false;
+        if (dHastaN && fN > dHastaN) return false;
         return true;
       });
     }
