@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BRINKS · Reporte Eventuales</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 :root {
   --bg:      #e8f0fe;
@@ -62,8 +63,8 @@ main{flex:1;padding:24px;max-width:1400px;width:100%;margin:0 auto}
 /* Badges */
 .badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;font-family:var(--mono)}
 .badge-ruta{background:rgba(26,110,247,.12);color:#1a4fa0}
-.badge-pu{background:rgba(46,160,67,.15);color:#56d364}
-.badge-dl{background:rgba(210,153,34,.15);color:#e3b341}
+.badge-pu{background:none;color:#0a8a5a;font-weight:700}
+.badge-dl{background:none;color:#c47a00;font-weight:700}
 .badge-count{background:var(--navy3);color:var(--muted);border:1px solid var(--border)}
 
 /* Table */
@@ -137,6 +138,7 @@ select option{background:var(--surface2)}
 <nav>
   <div class="tab active" data-tab="cargar">📥 Cargar Diario</div>
   <div class="tab" data-tab="consultar">🔍 Consultar</div>
+  <div class="tab" data-tab="dashboard">📊 Dashboard</div>
 </nav>
 
 <main>
@@ -231,6 +233,62 @@ select option{background:var(--surface2)}
       </table>
     </div>
   </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div class="panel" id="panel-dashboard">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="form-group" style="min-width:140px">
+        <label>Período</label>
+        <select id="db_periodo" onchange="cargarDashboard()">
+          <option value="mes">Por mes</option>
+          <option value="quincena">Por quincena</option>
+          <option value="dia">Por día</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:140px">
+        <label>Mes</label>
+        <input type="month" id="db_mes" onchange="cargarDashboard()">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="cargarDashboard()">🔄 Actualizar</button>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="summary-bar" id="db_kpis">
+    <div class="summary-card"><div class="val" id="db_total">—</div><div class="lbl">Total Eventuales</div></div>
+    <div class="summary-card"><div class="val" id="db_levante">—</div><div class="lbl">Levantes</div></div>
+    <div class="summary-card"><div class="val" id="db_entrega">—</div><div class="lbl">Entregas</div></div>
+    <div class="summary-card"><div class="val" id="db_rutas">—</div><div class="lbl">Rutas activas</div></div>
+    <div class="summary-card"><div class="val" id="db_clientes">—</div><div class="lbl">Clientes</div></div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Eventuales por período</div>
+      <canvas id="chart_periodo" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Tipo de servicio</div>
+      <canvas id="chart_tipo" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Top 10 rutas con más eventuales</div>
+      <canvas id="chart_rutas" height="280"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 clientes con más eventuales</div>
+      <canvas id="chart_clientes" height="280"></canvas>
+    </div>
+  </div>
+
 </div>
 
 </main>
@@ -381,7 +439,7 @@ function renderPreview(datos) {
     <tr>
       <td>${r.sucursal}</td>
       <td><span class="badge badge-ruta">${r.rutid}</span></td>
-      <td style="font-family:var(--mono);font-size:12px">${r.diafec}</td>
+      <td style="font-family:var(--mono);font-size:12px">${formatFecha(r.diafec)}</td>
       <td style="font-family:var(--mono);text-align:center">${r.parada}</td>
       <td style="font-family:var(--mono)">${r.parid}</td>
       <td>${r.nombreParada}</td>
@@ -445,7 +503,7 @@ async function buscar() {
     }
 
     tbody.innerHTML = rows.map(r => `<tr>
-      <td style="font-family:var(--mono);font-size:12px">${r.DIAFEC||r.diafec||"—"}</td>
+      <td style="font-family:var(--mono);font-size:12px">${formatFecha(r.DIAFEC||r.diafec)}</td>
       <td>${r.SUCURSAL||r.sucursal||"—"}</td>
       <td><span class="badge badge-ruta">${r.RUTID||r.rutid||"—"}</span></td>
       <td style="font-family:var(--mono);text-align:center">${r.PARADA||r.parada||"—"}</td>
@@ -500,6 +558,182 @@ function toast(msg, type="ok") {
   el.textContent = msg; el.className = `show ${type}`;
   clearTimeout(_t); _t = setTimeout(() => el.className = "", 3500);
 }
+
+// ── Formato fecha ────────────────────────────────────────────
+function formatFecha(val) {
+  if (!val || val === '') return '—';
+  const s = String(val).trim();
+  if (s === '—') return s;
+  // Ya tiene formato dd/mm/yyyy
+  if (/^[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4}$/.test(s)) return s;
+  // Formato ISO: 2026-08-18T03:00:00.000Z
+  const iso = s.match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})/);
+  if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+  // Fallback Date
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return String(d.getUTCDate()).padStart(2,'0') + '/' +
+           String(d.getUTCMonth()+1).padStart(2,'0') + '/' +
+           d.getUTCFullYear();
+  }
+  return s;
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────
+let chartPeriodo = null, chartTipo = null, chartRutas = null, chartClientes = null;
+
+function destroyChart(c) { if (c) { c.destroy(); } return null; }
+
+async function cargarDashboard() {
+  const periodo = document.getElementById('db_periodo').value;
+  const mes     = document.getElementById('db_mes').value;
+
+  const params = {};
+  if (mes) { params.mes = mes; }
+
+  let rows;
+  try {
+    rows = await api('getEvenTuales', params);
+  } catch(e) {
+    toast('Error cargando datos: ' + e.message, 'err');
+    return;
+  }
+
+  // Filtrar por mes si se especificó
+  if (mes) {
+    const [yyyy, mm] = mes.split('-');
+    rows = rows.filter(r => {
+      const f = formatFecha(String(r.DIAFEC || r.diafec || ''));
+      // f es dd/mm/yyyy
+      const match = f.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})/);
+      if (match) return match[2] === mm && match[3] === yyyy;
+      return false;
+    });
+  }
+
+  // ── KPIs ─────────────────────────────────────────────────
+  const total    = rows.length;
+  const levante  = rows.filter(r => String(r.TIPOSERVICIO||'').includes('LEVANTE')).length;
+  const entrega  = rows.filter(r => String(r.TIPOSERVICIO||'').includes('ENTREGA')).length;
+  const rutas    = new Set(rows.map(r => r.RUTID||r.rutid)).size;
+  const clientes = new Set(rows.map(r => r.CLIENTE||r.cliente)).size;
+
+  document.getElementById('db_total').textContent    = total;
+  document.getElementById('db_levante').textContent  = levante;
+  document.getElementById('db_entrega').textContent  = entrega;
+  document.getElementById('db_rutas').textContent    = rutas;
+  document.getElementById('db_clientes').textContent = clientes;
+
+  // ── Agrupar por período ───────────────────────────────────
+  const periodoMap = {};
+  rows.forEach(r => {
+    const raw = String(r.DIAFEC || r.diafec || '');
+    // Normalizar a dd/mm/yyyy
+    const f = formatFecha(raw);
+    let key = f;
+    // Extraer partes de dd/mm/yyyy
+    const match = f.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})/);
+    if (match) {
+      const d = parseInt(match[1]), m = match[2], y = match[3];
+      if (periodo === 'mes')           key = m + '/' + y;
+      else if (periodo === 'quincena') key = (d <= 15 ? '1-15' : '16-fin') + ' ' + m + '/' + y;
+      else                             key = f;
+    }
+    periodoMap[key] = (periodoMap[key] || 0) + 1;
+  });
+  const periodoLabels = Object.keys(periodoMap).sort();
+  const periodoData   = periodoLabels.map(k => periodoMap[k]);
+
+  // ── Chart período ─────────────────────────────────────────
+  chartPeriodo = destroyChart(chartPeriodo);
+  chartPeriodo = new Chart(document.getElementById('chart_periodo'), {
+    type: 'bar',
+    data: {
+      labels: periodoLabels,
+      datasets: [{ label: 'Eventuales', data: periodoData,
+        backgroundColor: 'rgba(26,110,247,0.7)', borderColor: '#1a6ef7',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // ── Chart tipo servicio ───────────────────────────────────
+  const soloLevante = rows.filter(r => String(r.TIPOSERVICIO||'') === 'LEVANTE').length;
+  const soloEntrega = rows.filter(r => String(r.TIPOSERVICIO||'') === 'ENTREGA').length;
+  const ambos       = rows.filter(r => String(r.TIPOSERVICIO||'').includes('LEVANTE') && String(r.TIPOSERVICIO||'').includes('ENTREGA')).length;
+
+  chartTipo = destroyChart(chartTipo);
+  chartTipo = new Chart(document.getElementById('chart_tipo'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Solo Levante', 'Solo Entrega', 'Levante + Entrega'],
+      datasets: [{ data: [soloLevante, soloEntrega, ambos],
+        backgroundColor: ['rgba(10,138,90,0.8)', 'rgba(196,122,0,0.8)', 'rgba(26,110,247,0.8)'],
+        borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // ── Top rutas ─────────────────────────────────────────────
+  const rutaMap = {};
+  rows.forEach(r => {
+    const k = r.RUTID || r.rutid || '—';
+    rutaMap[k] = (rutaMap[k] || 0) + 1;
+  });
+  const topRutas = Object.entries(rutaMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+
+  chartRutas = destroyChart(chartRutas);
+  chartRutas = new Chart(document.getElementById('chart_rutas'), {
+    type: 'bar',
+    data: {
+      labels: topRutas.map(r => r[0]),
+      datasets: [{ label: 'Eventuales', data: topRutas.map(r => r[1]),
+        backgroundColor: 'rgba(26,110,247,0.7)', borderColor: '#1a6ef7',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { indexAxis: 'y', responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // ── Top clientes ──────────────────────────────────────────
+  const clienteMap = {};
+  rows.forEach(r => {
+    const k = r.CLIENTE || r.cliente || '—';
+    clienteMap[k] = (clienteMap[k] || 0) + 1;
+  });
+  const topClientes = Object.entries(clienteMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+
+  chartClientes = destroyChart(chartClientes);
+  chartClientes = new Chart(document.getElementById('chart_clientes'), {
+    type: 'bar',
+    data: {
+      labels: topClientes.map(c => c[0].length > 20 ? c[0].slice(0,20)+'…' : c[0]),
+      datasets: [{ label: 'Eventuales', data: topClientes.map(c => c[1]),
+        backgroundColor: 'rgba(10,138,90,0.7)', borderColor: '#0a8a5a',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { indexAxis: 'y', responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+// Cargar dashboard al abrir la pestaña
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    if (t.dataset.tab === 'dashboard') {
+      // Set mes actual por defecto
+      const hoy = new Date();
+      const mesEl = document.getElementById('db_mes');
+      if (!mesEl.value) {
+        mesEl.value = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+      }
+      setTimeout(cargarDashboard, 100);
+    }
+  });
+});
 
 // Init
 document.addEventListener("DOMContentLoaded", testConnection);
