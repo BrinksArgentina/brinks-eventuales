@@ -496,11 +496,16 @@ async function buscar() {
     const desde = document.getElementById("q_desde").value;
     const hasta = document.getElementById("q_hasta").value;
     if (desde || hasta) {
+      const dDesde = desde ? new Date(desde) : null;
+      const dHasta = hasta ? new Date(hasta + "T23:59:59") : null;
       rows = rows.filter(r => {
-        const f = r["DIAFEC"] || r["diafec"] || "";
+        const f = String(r["DIAFEC"] || r["diafec"] || "").trim();
         if (!f) return true;
-        if (desde && f < desde) return false;
-        if (hasta && f > hasta) return false;
+        const match = f.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (!match) return true;
+        const fDate = new Date(match[3] + "-" + match[2] + "-" + match[1]);
+        if (dDesde && fDate < dDesde) return false;
+        if (dHasta && fDate > dHasta) return false;
         return true;
       });
     }
