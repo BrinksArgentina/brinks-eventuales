@@ -468,8 +468,10 @@ async function guardarEvenTuales() {
   btn.disabled = true;
   btn.innerHTML = '<div class="loader"></div> Guardando…';
   try {
-    await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
-    toast(`${eventualesActuales.length} eventuales guardados ✓`, "ok");
+    console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
+    const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
+    console.log("Resultado backend:", resultado);
+    toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
     setTimeout(() => { btn.disabled = false; btn.innerHTML = "💾 Guardar en Sheets"; }, 3000);
   } catch(e) {
