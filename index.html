@@ -7,6 +7,7 @@
 <title>BRINKS · Reporte Eventuales</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
 :root {
   --bg:      #e8f0fe;
@@ -271,57 +272,105 @@ select option{background:var(--surface2)}
 <!-- ══ DASHBOARD ══ -->
 <div class="panel" id="panel-dashboard">
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div class="form-group" style="min-width:140px">
-        <label>Período</label>
-        <select id="db_periodo" onchange="cargarDashboard()">
-          <option value="mes">Por mes</option>
-          <option value="quincena">Por quincena</option>
-          <option value="dia">Por día</option>
-        </select>
-      </div>
-      <div class="form-group" style="min-width:180px">
-        <label>Fecha disponible</label>
-        <select id="db_fecha" onchange="cargarDashboard()">
-          <option value="">Cargando fechas…</option>
-        </select>
-      </div>
+  <!-- Header -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:2px">Resultados del Análisis</div>
+      <div style="font-size:12px;color:var(--muted)" id="db_subtitle">Mostrando datos de: Todas las Sucursales | Histórico Total</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="copiarResumen()" title="Copiar resumen">📋 Copiar para correo</button>
+  </div>
+
+  <!-- Filtros -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:flex-end;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+    <div class="form-group">
+      <label>1. Período</label>
+      <select id="db_periodo" onchange="cargarDashboard()">
+        <option value="dia">Por día</option>
+        <option value="mes">Por mes</option>
+        <option value="quincena">Por quincena</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>2. Sucursal</label>
+      <select id="db_sucursal" onchange="cargarDashboard()">
+        <option value="">Todas las Sucursales</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>3. Fecha</label>
+      <select id="db_fecha" onchange="cargarDashboard()">
+        <option value="">Todas las fechas</option>
+      </select>
     </div>
     <button class="btn btn-primary" onclick="cargarDashboard()">🔄 Actualizar</button>
   </div>
 
   <!-- KPI cards -->
-  <div class="summary-bar" id="db_kpis">
-    <div class="summary-card"><div class="val" id="db_total">—</div><div class="lbl">Total Eventuales</div></div>
-    <div class="summary-card"><div class="val" id="db_levante">—</div><div class="lbl">Levantes</div></div>
-    <div class="summary-card"><div class="val" id="db_entrega">—</div><div class="lbl">Entregas</div></div>
-    <div class="summary-card"><div class="val" id="db_rutas">—</div><div class="lbl">Rutas activas</div></div>
-    <div class="summary-card"><div class="val" id="db_clientes">—</div><div class="lbl">Clientes</div></div>
+  <div class="summary-bar" style="margin-bottom:16px">
+    <div class="summary-card" style="border-left:3px solid var(--accent)">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total Eventuales</div>
+      <div style="font-size:36px;font-weight:700;color:var(--navy);line-height:1" id="db_total">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="db_total_sub"></div>
+    </div>
+    <div class="summary-card" style="border-left:3px solid #e74c3c">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% Eventuales / Servicios</div>
+      <div style="font-size:36px;font-weight:700;color:#e74c3c;line-height:1" id="db_pct">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="db_pct_sub"></div>
+    </div>
+    <div class="summary-card" style="border-left:3px solid var(--success)">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Serv. Totales Mensuales</div>
+      <div style="font-size:36px;font-weight:700;color:var(--navy);line-height:1" id="db_prog_mes">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="db_prog_mes_sub"></div>
+    </div>
+    <div class="summary-card" style="border-left:3px solid #8e44ad">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Serv. Totales Diarios</div>
+      <div style="font-size:36px;font-weight:700;color:var(--navy);line-height:1" id="db_prog_dia">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="db_prog_dia_sub"></div>
+    </div>
   </div>
 
-  <!-- Charts row 1 -->
+  <!-- Charts row 1: Top rutas + Top clientes -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="card">
-      <div class="card-title">Eventuales por período</div>
-      <canvas id="chart_periodo" height="200"></canvas>
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">📍 Top 10 Rutas con más Eventuales</div>
+      <canvas id="chart_rutas" height="240"></canvas>
     </div>
     <div class="card">
-      <div class="card-title">Tipo de servicio</div>
-      <canvas id="chart_tipo" height="200"></canvas>
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">🏢 Top 10 Clientes con más Eventuales</div>
+      <canvas id="chart_clientes" height="240"></canvas>
     </div>
   </div>
 
-  <!-- Charts row 2 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <!-- Charts row 2: Historico full width -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">📈 Evolución Histórica de Eventuales</div>
+    <canvas id="chart_periodo" height="120"></canvas>
+  </div>
+
+  <!-- Charts row 3: Dona -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px">
     <div class="card">
-      <div class="card-title">Top 10 rutas con más eventuales</div>
-      <canvas id="chart_rutas" height="280"></canvas>
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">🔵 Distribución de Causas</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="db_dona_sub"></div>
+      <canvas id="chart_tipo" height="180"></canvas>
     </div>
-    <div class="card">
-      <div class="card-title">Top 10 clientes con más eventuales</div>
-      <canvas id="chart_clientes" height="280"></canvas>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="display:flex;flex-direction:column">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Resumen por Sucursal</div>
+        <div id="db_sucursal_table" style="font-size:13px"></div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">🏷 Top 10 ParId con más Eventuales</div>
+        <canvas id="chart_parid" height="240"></canvas>
+      </div>
     </div>
+  </div>
+
+  <!-- Chart observaciones -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">📝 Eventuales por Observación</div>
+    <canvas id="chart_obs" height="80"></canvas>
   </div>
 
 </div>
@@ -764,6 +813,34 @@ async function guardarProgramados() {
   }
 }
 
+// ── GUARDAR TODAS LAS OBSERVACIONES ─────────────────────────
+async function guardarTodasObs() {
+  const filas = document.querySelectorAll('select.obs-input[data-row]');
+  if (!filas.length) { toast('Sin registros para guardar', 'err'); return; }
+
+  const btn = document.querySelector('button[onclick="guardarTodasObs()"]');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loader"></div> Guardando…';
+
+  let ok = 0, err = 0;
+  for (const sel of filas) {
+    const rowNum = sel.dataset.row;
+    const input  = sel.parentElement.querySelector('input.obs-input');
+    let obs = sel.value;
+    if (obs === 'OTRAS') {
+      obs = input?.value?.trim() ? 'OTRAS:' + input.value.trim() : '';
+    }
+    try {
+      await apiPost({ action: 'updateObs', row: parseInt(rowNum), obs });
+      ok++;
+    } catch(e) { err++; }
+  }
+
+  toast(`${ok} observaciones guardadas${err>0?' · '+err+' errores':''}`, err>0?'err':'ok');
+  btn.disabled = false;
+  btn.innerHTML = '💾 Guardar todas las obs.';
+}
+
 // ── OBSERVACION DROPDOWN ─────────────────────────────────────
 function onObsChange(sel) {
   const row = sel.parentElement;
@@ -828,198 +905,300 @@ async function guardarObs(input) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-let chartPeriodo = null, chartTipo = null, chartRutas = null, chartClientes = null;
+let chartPeriodo = null, chartTipo = null, chartRutas = null, chartClientes = null, chartParid = null, chartObs = null;
 
 function destroyChart(c) { if (c) { c.destroy(); } return null; }
 
 async function cargarDashboard() {
-  const periodo = document.getElementById('db_periodo').value;
-  const fechaSel = document.getElementById('db_fecha')?.value || '';
+  const periodo   = document.getElementById('db_periodo').value;
+  const fechaSel  = document.getElementById('db_fecha')?.value || '';
+  const sucSel    = document.getElementById('db_sucursal')?.value || '';
 
-  let rows;
-  try {
-    rows = await api('getEvenTuales');
-  } catch(e) {
-    toast('Error cargando datos: ' + e.message, 'err');
-    return;
-  }
+  let allRows;
+  try { allRows = await api('getEvenTuales'); } catch(e) { toast('Error: '+e.message,'err'); return; }
 
-  // Filtrar por fecha seleccionada
-  if (fechaSel) {
-    rows = rows.filter(r => {
-      const f = formatFecha(String(r.DIAFEC || r.diafec || ''));
-      return f === fechaSel;
+  // Poblar filtros si están vacíos
+  const selFecha = document.getElementById('db_fecha');
+  if (selFecha && selFecha.options.length <= 1) {
+    const fechas = [...new Set(allRows.map(r=>formatFecha(String(r.DIAFEC||r.diafec||''))))].filter(Boolean).sort((a,b)=>{
+      const pa=a.split('/'),pb=b.split('/');
+      return (pb[2]+pb[1]+pb[0]).localeCompare(pa[2]+pa[1]+pa[0]);
     });
+    fechas.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; selFecha.appendChild(o); });
+    if (fechas.length) selFecha.value = fechas[0];
   }
 
-  // ── KPIs ─────────────────────────────────────────────────
-  const total    = rows.length;
-  const levante  = rows.filter(r => String(r.TIPOSERVICIO||'').includes('LEVANTE')).length;
-  const entrega  = rows.filter(r => String(r.TIPOSERVICIO||'').includes('ENTREGA')).length;
-  const rutas    = new Set(rows.map(r => r.RUTID||r.rutid)).size;
-  const clientes = new Set(rows.map(r => r.CLIENTE||r.cliente)).size;
+  const selSuc = document.getElementById('db_sucursal');
+  if (selSuc && selSuc.options.length <= 1) {
+    const sucs = [...new Set(allRows.map(r=>String(r.SUCURSAL||r.sucursal||'')))].filter(Boolean).sort();
+    sucs.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; selSuc.appendChild(o); });
+  }
 
-  document.getElementById('db_total').textContent    = total;
-  document.getElementById('db_levante').textContent  = levante;
-  document.getElementById('db_entrega').textContent  = entrega;
-  document.getElementById('db_rutas').textContent    = rutas;
-  document.getElementById('db_clientes').textContent = clientes;
+  // Filtrar
+  let rows = allRows;
+  if (fechaSel) rows = rows.filter(r => formatFecha(String(r.DIAFEC||r.diafec||'')) === fechaSel);
+  if (sucSel)   rows = rows.filter(r => String(r.SUCURSAL||r.sucursal||'') === sucSel);
 
-  // ── Agrupar por período ───────────────────────────────────
-  const periodoMap = {};
-  rows.forEach(r => {
-    const raw = String(r.DIAFEC || r.diafec || '');
-    // Normalizar a dd/mm/yyyy
-    const f = formatFecha(raw);
-    let key = f;
-    // Extraer partes de dd/mm/yyyy
-    const match = f.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})/);
-    if (match) {
-      const d = parseInt(match[1]), m = match[2], y = match[3];
-      if (periodo === 'mes')           key = m + '/' + y;
-      else if (periodo === 'quincena') key = (d <= 15 ? '1-15' : '16-fin') + ' ' + m + '/' + y;
-      else                             key = f;
-    }
-    periodoMap[key] = (periodoMap[key] || 0) + 1;
-  });
-  const periodoLabels = Object.keys(periodoMap).sort();
-  const periodoData   = periodoLabels.map(k => periodoMap[k]);
+  // Subtítulo
+  const sucLabel = sucSel || 'Todas las Sucursales';
+  const fecLabel = fechaSel || 'Histórico Total';
+  document.getElementById('db_subtitle').textContent = 'Mostrando datos de: ' + sucLabel + ' | ' + fecLabel;
 
-  // ── Chart período ─────────────────────────────────────────
-  chartPeriodo = destroyChart(chartPeriodo);
-  chartPeriodo = new Chart(document.getElementById('chart_periodo'), {
-    type: 'bar',
-    data: {
-      labels: periodoLabels,
-      datasets: [{ label: 'Eventuales', data: periodoData,
-        backgroundColor: 'rgba(26,110,247,0.7)', borderColor: '#1a6ef7',
-        borderWidth: 1, borderRadius: 4 }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-  });
+  const total   = rows.length;
 
-  // ── Chart programados vs eventuales ─────────────────────────
-  let totalProg = 0;
-  try {
-    const progData = await api('getProgramados');
-    let progRows = progData;
-    if (fechaSel) {
-      progRows = progData.filter(r => String(r.DIAFEC||'') === fechaSel);
-    }
-    totalProg = progRows.reduce((s, r) => s + (parseInt(r.TOTAL)||0), 0);
-  } catch(e) { totalProg = 0; }
+  // Programados
+  let progData = [];
+  try { progData = await api('getProgramados'); } catch(e) {}
+  if (sucSel) progData = progData.filter(r => String(r.SUCURSAL||r.sucursal||'') === sucSel);
 
-  chartTipo = destroyChart(chartTipo);
-  chartTipo = new Chart(document.getElementById('chart_tipo'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Programados', 'Eventuales'],
-      datasets: [{ data: [totalProg, total],
-        backgroundColor: ['rgba(26,110,247,0.8)', 'rgba(196,122,0,0.8)'],
-        borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              const t = totalProg + total;
-              const pct = t > 0 ? ((ctx.parsed / t) * 100).toFixed(1) : 0;
-              return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
-            }
-          }
-        }
-      }
-    }
-  });
+  const hoy = new Date();
+  const mmA = String(hoy.getMonth()+1).padStart(2,'0'), aaA = String(hoy.getFullYear());
+  const progMes = progData.filter(r=>{ const m=String(r.DIAFEC||'').match(/^(\d\d)\/(\d\d)\/(\d{4})/); return m&&m[2]===mmA&&m[3]===aaA; }).reduce((s,r)=>s+(parseInt(r.TOTAL)||0),0);
+  const fecParaProg = fechaSel || formatFecha(hoy.toISOString().split('T')[0]);
+  const progDia = progData.filter(r=>String(r.DIAFEC||'')===fecParaProg).reduce((s,r)=>s+(parseInt(r.TOTAL)||0),0);
+  const pct = progDia > 0 ? ((total/progDia)*100).toFixed(2)+'%' : '—';
 
-  // ── Top rutas ─────────────────────────────────────────────
+  // KPIs
+  document.getElementById('db_total').textContent = total;
+  document.getElementById('db_total_sub').textContent = fechaSel || 'Histórico';
+  document.getElementById('db_pct').textContent = pct;
+  document.getElementById('db_pct_sub').textContent = fechaSel || mmA+'/'+aaA;
+  document.getElementById('db_prog_mes').textContent = progMes.toLocaleString('es-AR');
+  document.getElementById('db_prog_mes_sub').textContent = mmA+'/'+aaA;
+  document.getElementById('db_prog_dia').textContent = progDia.toLocaleString('es-AR');
+  document.getElementById('db_prog_dia_sub').textContent = fecParaProg;
+
+  // ── Top 10 Rutas ─────────────────────────────────────────
   const rutaMap = {};
-  rows.forEach(r => {
-    const k = r.RUTID || r.rutid || '—';
-    rutaMap[k] = (rutaMap[k] || 0) + 1;
-  });
-  const topRutas = Object.entries(rutaMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+  rows.forEach(r=>{ const k=r.RUTID||r.rutid||'—'; rutaMap[k]=(rutaMap[k]||0)+1; });
+  const topRutas = Object.entries(rutaMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   chartRutas = destroyChart(chartRutas);
   chartRutas = new Chart(document.getElementById('chart_rutas'), {
     type: 'bar',
     data: {
-      labels: topRutas.map(r => r[0]),
-      datasets: [{ label: 'Eventuales', data: topRutas.map(r => r[1]),
-        backgroundColor: 'rgba(26,110,247,0.7)', borderColor: '#1a6ef7',
-        borderWidth: 1, borderRadius: 4 }]
+      labels: topRutas.map(r=>r[0]),
+      datasets: [{ label: 'Eventuales', data: topRutas.map(r=>r[1]),
+        backgroundColor: '#1a4fa0', borderWidth: 0, borderRadius: 2 }]
     },
-    options: { indexAxis: 'y', responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' '+ctx.parsed.x+' eventuales' } },
+        datalabels: {
+          anchor: 'center', align: 'center',
+          color: '#fff', font: { size: 12, weight: 'bold' },
+          formatter: v => v
+        }
+      },
+      scales: { x: { display: false, beginAtZero: true }, y: { ticks: { font:{size:11}, color:'#2a4a7a' } } }
+    },
+    plugins: [ChartDataLabels]
   });
 
-  // ── Top clientes ──────────────────────────────────────────
-  const clienteMap = {};
-  rows.forEach(r => {
-    const k = r.CLIENTE || r.cliente || '—';
-    clienteMap[k] = (clienteMap[k] || 0) + 1;
-  });
-  const topClientes = Object.entries(clienteMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+  // ── Top 10 Clientes ───────────────────────────────────────
+  const cliMap = {};
+  rows.forEach(r=>{ const k=r.CLIENTE||r.cliente||'—'; cliMap[k]=(cliMap[k]||0)+1; });
+  const topCli = Object.entries(cliMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   chartClientes = destroyChart(chartClientes);
   chartClientes = new Chart(document.getElementById('chart_clientes'), {
     type: 'bar',
     data: {
-      labels: topClientes.map(c => c[0].length > 20 ? c[0].slice(0,20)+'…' : c[0]),
-      datasets: [{ label: 'Eventuales', data: topClientes.map(c => c[1]),
-        backgroundColor: 'rgba(10,138,90,0.7)', borderColor: '#0a8a5a',
-        borderWidth: 1, borderRadius: 4 }]
+      labels: topCli.map(c=>c[0].length>24?c[0].slice(0,24)+'…':c[0]),
+      datasets: [{ label: 'Eventuales', data: topCli.map(c=>c[1]),
+        backgroundColor: '#1a4fa0', borderWidth: 0, borderRadius: 2 }]
     },
-    options: { indexAxis: 'y', responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'center', align: 'center',
+          color: '#fff', font: { size: 12, weight: 'bold' },
+          formatter: v => v
+        }
+      },
+      scales: { x: { display: false, beginAtZero: true }, y: { ticks: { font:{size:10}, color:'#2a4a7a' } } }
+    },
+    plugins: [ChartDataLabels]
   });
-}
 
-// Cargar dashboard al abrir la pestaña
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    if (t.dataset.tab === 'dashboard') {
-      cargarFechasDisponibles();
+  // ── Top 10 ParId ─────────────────────────────────────────
+  const paridMap = {};
+  rows.forEach(r=>{ const k=r.PARID||r.parid||'—'; paridMap[k]=(paridMap[k]||0)+1; });
+  const topParid = Object.entries(paridMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  chartParid = destroyChart(chartParid);
+  chartParid = new Chart(document.getElementById('chart_parid'), {
+    type: 'bar',
+    data: {
+      labels: topParid.map(r=>r[0]),
+      datasets: [{ label: 'Eventuales', data: topParid.map(r=>r[1]),
+        backgroundColor: '#8e44ad', borderWidth: 0, borderRadius: 2 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'center', align: 'center',
+          color: '#fff', font: { size: 12, weight: 'bold' },
+          formatter: v => v
+        }
+      },
+      scales: { x: { display: false, beginAtZero: true }, y: { ticks: { font:{size:11}, color:'#2a4a7a' } } }
+    },
+    plugins: [ChartDataLabels]
+  });
+
+  // ── Evolución histórica ───────────────────────────────────
+  const histMap = {};
+  allRows.forEach(r=>{
+    let rowSuc = String(r.SUCURSAL||r.sucursal||'');
+    if (sucSel && rowSuc !== sucSel) return;
+    const f = formatFecha(String(r.DIAFEC||r.diafec||''));
+    let key = f;
+    const m = f.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) {
+      if (periodo==='mes')           key = m[2]+'/'+m[3];
+      else if (periodo==='quincena') key = (parseInt(m[1])<=15?'1-15':'16-fin')+' '+m[2]+'/'+m[3];
+    }
+    histMap[key] = (histMap[key]||0)+1;
+  });
+  const histLabels = Object.keys(histMap).sort((a,b)=>{
+    const ga=a.match(/(\d{2})\/(\d{4})/), gb=b.match(/(\d{2})\/(\d{4})/);
+    if(ga&&gb) return (ga[2]+ga[1]).localeCompare(gb[2]+gb[1]);
+    return a.localeCompare(b);
+  });
+
+  chartPeriodo = destroyChart(chartPeriodo);
+  chartPeriodo = new Chart(document.getElementById('chart_periodo'), {
+    type: 'line',
+    data: {
+      labels: histLabels,
+      datasets: [{ label: 'Eventuales', data: histLabels.map(k=>histMap[k]),
+        borderColor: '#1a4fa0', backgroundColor: 'rgba(26,79,160,0.1)',
+        borderWidth: 2, pointBackgroundColor: '#1a4fa0', pointRadius: 4,
+        pointHoverRadius: 6, fill: true, tension: 0.3 }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' Eventuales: '+ctx.parsed.y } },
+        datalabels: {
+          anchor: 'top', align: 'top',
+          color: '#1a4fa0', font: { size: 10, weight: 'bold' },
+          formatter: v => v
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, font:{size:11} } },
+        x: { ticks: { maxRotation: 45, font:{size:10} } }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+
+  // ── Dona ─────────────────────────────────────────────────
+  const sinNovedad = Math.max(0, progDia - total);
+  document.getElementById('db_dona_sub').textContent =
+    (fechaSel||'Hoy') + ' · Eventuales: ' + total + ' de ' + progDia + ' servicios' + (progDia>0?' ('+pct+')':'');
+
+  chartTipo = destroyChart(chartTipo);
+  chartTipo = new Chart(document.getElementById('chart_tipo'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Eventuales', 'Sin Novedad'],
+      datasets: [{ data: [total, sinNovedad],
+        backgroundColor: ['#1a4fa0','#8bc34a'], borderWidth: 2, borderColor:'#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'bottom', labels:{font:{size:11}} },
+        tooltip: { callbacks: { label: ctx => {
+          const t=total+sinNovedad;
+          const p=t>0?((ctx.parsed/t)*100).toFixed(1):0;
+          return ' '+ctx.label+': '+ctx.parsed.toLocaleString('es-AR')+' ('+p+'%)';
+        }}}
+      }
     }
   });
-});
 
-async function cargarFechasDisponibles() {
-  try {
-    const rows = await api('getEvenTuales');
-    // Obtener fechas únicas
-    const fechas = [...new Set(rows.map(r => {
-      const f = String(r.DIAFEC || r.diafec || '');
-      return f;
-    }).filter(f => f))].sort((a, b) => {
-      // Ordenar dd/mm/yyyy descendente
-      const pa = a.split('/'); const pb = b.split('/');
-      const da = pa[2]+pa[1]+pa[0]; const db2 = pb[2]+pb[1]+pb[0];
-      return db2.localeCompare(da);
-    });
+  // ── Eventuales por Observación ──────────────────────────────
+  const obsMap = {};
+  rows.forEach(r => {
+    let obs = String(r.OBS||r.obs||'').trim();
+    if (!obs) obs = 'Sin observación';
+    else if (obs.startsWith('OTRAS:')) obs = obs.replace('OTRAS:','').trim() || 'Otras';
+    obsMap[obs] = (obsMap[obs]||0) + 1;
+  });
+  const obsEntries = Object.entries(obsMap).sort((a,b)=>b[1]-a[1]);
 
-    const sel = document.getElementById('db_fecha');
-    sel.innerHTML = '<option value="">Todas las fechas</option>' +
-      fechas.map(f => `<option value="${f}">${f}</option>`).join('');
+  chartObs = destroyChart(chartObs);
+  chartObs = new Chart(document.getElementById('chart_obs'), {
+    type: 'bar',
+    data: {
+      labels: obsEntries.map(o=>o[0]),
+      datasets: [{ label: 'Eventuales', data: obsEntries.map(o=>o[1]),
+        backgroundColor: ['#1a4fa0','#0a8a5a','#e74c3c','#f39c12','#8e44ad','#16a085','#2980b9','#c0392b'],
+        borderWidth: 0, borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'center', align: 'center',
+          color: '#fff', font: { size: 12, weight: 'bold' },
+          formatter: v => v
+        }
+      },
+      scales: { x: { display: false, beginAtZero: true }, y: { ticks: { font:{size:12}, color:'#2a4a7a' } } }
+    },
+    plugins: [ChartDataLabels]
+  });
 
-    // Seleccionar la más reciente
-    if (fechas.length > 0) sel.value = fechas[0];
-
-    cargarDashboard();
-  } catch(e) {
-    console.error('Error cargando fechas:', e);
-    cargarDashboard();
-  }
+  // ── Resumen por Sucursal ──────────────────────────────────
+  const sucMap = {};
+  rows.forEach(r=>{ const k=r.SUCURSAL||r.sucursal||'—'; sucMap[k]=(sucMap[k]||0)+1; });
+  const sucEntries = Object.entries(sucMap).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('db_sucursal_table').innerHTML = sucEntries.length ? `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)">Sucursal</th>
+        <th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)">Eventuales</th>
+        <th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)">%</th>
+      </tr></thead>
+      <tbody>${sucEntries.map(([s,n])=>`
+        <tr>
+          <td style="padding:6px 10px;font-size:13px;border-bottom:1px solid #f0f4f8">${s}</td>
+          <td style="padding:6px 10px;font-size:13px;text-align:right;font-weight:700;color:var(--accent);border-bottom:1px solid #f0f4f8">${n}</td>
+          <td style="padding:6px 10px;font-size:12px;text-align:right;color:var(--muted);border-bottom:1px solid #f0f4f8">${total>0?((n/total)*100).toFixed(1)+'%':'—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : '<p style="color:var(--muted);font-size:13px">Sin datos</p>';
 }
 
+function copiarResumen() {
+  const sub  = document.getElementById('db_subtitle')?.textContent || '';
+  const tot  = document.getElementById('db_total')?.textContent || '—';
+  const pct  = document.getElementById('db_pct')?.textContent || '—';
+  const pmes = document.getElementById('db_prog_mes')?.textContent || '—';
+  const pdia = document.getElementById('db_prog_dia')?.textContent || '—';
+  const txt = `Reporte de Eventuales BRINKS\n${sub}\n\nTotal Eventuales: ${tot}\n% Eventuales/Servicios: ${pct}\nServicios Mensuales: ${pmes}\nServicios Diarios: ${pdia}`;
+  navigator.clipboard.writeText(txt).then(()=>toast('Resumen copiado ✓','ok')).catch(()=>toast('Error al copiar','err'));
+}
+
+
+
 // Init
-document.addEventListener("DOMContentLoaded", testConnection);
+document.addEventListener('DOMContentLoaded', () => {
+  testConnection();
+});
 </script>
 </body>
 </html>
