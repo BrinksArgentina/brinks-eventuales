@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
   --bg:      #e8f0fe;
@@ -1221,14 +1222,31 @@ async function cargarDashboard() {
     </table>` : '<p style="color:var(--muted);font-size:13px">Sin datos</p>';
 }
 
-function copiarResumen() {
-  const sub  = document.getElementById('db_subtitle')?.textContent || '';
-  const tot  = document.getElementById('db_total')?.textContent || '—';
-  const pct  = document.getElementById('db_pct')?.textContent || '—';
-  const pmes = document.getElementById('db_prog_mes')?.textContent || '—';
-  const pdia = document.getElementById('db_prog_dia')?.textContent || '—';
-  const txt = `Reporte de Eventuales BRINKS\n${sub}\n\nTotal Eventuales: ${tot}\n% Eventuales/Servicios: ${pct}\nServicios Mensuales: ${pmes}\nServicios Diarios: ${pdia}`;
-  navigator.clipboard.writeText(txt).then(()=>toast('Resumen copiado ✓','ok')).catch(()=>toast('Error al copiar','err'));
+async function copiarResumen() {
+  const btn = document.querySelector('button[onclick="copiarResumen()"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<div class="loader"></div> Capturando…';
+  btn.disabled = true;
+  try {
+    const panel = document.getElementById('panel-dashboard');
+    const canvas = await html2canvas(panel, {
+      backgroundColor: '#e8f0fe',
+      scale: 1.5,
+      useCORS: true,
+      logging: false
+    });
+    canvas.toBlob(async (blob) => {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      toast('Dashboard copiado — pegalo con Ctrl+V ✓', 'ok');
+    }, 'image/png');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
 }
 
 
