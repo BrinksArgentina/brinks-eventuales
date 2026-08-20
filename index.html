@@ -175,7 +175,7 @@ select option{background:var(--surface2)}
             <tr>
               <th>Sucursal</th><th>RutId</th><th>Fecha</th><th>Parada</th>
               <th>ParId</th><th>Nombre Parada</th><th>Cliente</th>
-              <th>Tipo Servicio</th><th>Observación</th>
+              <th>Tipo Servicio</th>
             </tr>
           </thead>
           <tbody id="previewBody"></tbody>
@@ -281,9 +281,11 @@ select option{background:var(--surface2)}
           <option value="dia">Por día</option>
         </select>
       </div>
-      <div class="form-group" style="min-width:140px">
-        <label>Mes</label>
-        <input type="month" id="db_mes" onchange="cargarDashboard()">
+      <div class="form-group" style="min-width:180px">
+        <label>Fecha disponible</label>
+        <select id="db_fecha" onchange="cargarDashboard()">
+          <option value="">Cargando fechas…</option>
+        </select>
       </div>
     </div>
     <button class="btn btn-primary" onclick="cargarDashboard()">🔄 Actualizar</button>
@@ -490,7 +492,7 @@ function renderPreview(datos) {
       <td>${r.nombreParada}</td>
       <td>${r.cliente}</td>
       <td>${tipoServicio(r.pu, r.dl)}</td>
-      <td><input class="obs-input" placeholder="Observación…" oninput="eventualesActuales[${i}].obs=this.value"></td>
+
     </tr>
   `).join("");
 
@@ -507,7 +509,7 @@ async function guardarEvenTuales() {
     console.log("Primer registro:", JSON.stringify(eventualesActuales[0]));
     const resultado = await apiPost({ action: "addEvenTuales", rows: eventualesActuales });
     console.log("Resultado backend:", resultado);
-    // Generar y descargar CSV de programados automáticamente
+    // Guardar resumen de programados y descargar CSV solo si hay nuevos
     if (window._programadosCargados && window._programadosCargados.length) {
       const resumen = {};
       window._programadosCargados.forEach(r => {
@@ -516,16 +518,29 @@ async function guardarEvenTuales() {
         resumen[key].total++;
       });
       window._resumenProgramados = Object.values(resumen).sort((a,b) => a.rutid.localeCompare(b.rutid));
-      // Auto-descargar CSV
-      const header = 'SUCURSAL,RUTID,DIAFEC,TOTAL';
-      const rows = window._resumenProgramados.map(r => r.sucursal+','+r.rutid+','+r.diafec+','+r.total);
-      const csv = [header, ...rows].join('\n');
-      const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'programados_'+( window._resumenProgramados[0]?.diafec?.replace(/\//g,'-')||'hoy')+'.csv';
-      a.click();
-      toast('CSV de programados descargado — subilo en pestaña Programados', 'ok');
+
+      // Enviar en lotes de 20 y contar guardados nuevos
+      let totalGuardadosProg = 0;
+      const arr = window._resumenProgramados;
+      for (let i = 0; i < arr.length; i += 20) {
+        const res = await apiPost({ action: 'addProgramados', resumen: arr.slice(i, i + 20) });
+        // res viene como "Programados: X · Omitidos: Y"
+        const match = String(res).match(/Programados:\s*(\d+)/);
+        if (match) totalGuardadosProg += parseInt(match[1]);
+      }
+
+      if (totalGuardadosProg > 0) {
+        // Solo descargar si hay programados nuevos
+        const header = 'SUCURSAL,RUTID,DIAFEC,TOTAL';
+        const rows = window._resumenProgramados.map(r => r.sucursal+','+r.rutid+','+r.diafec+','+r.total);
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'programados_'+(window._resumenProgramados[0]?.diafec?.replace(/\//g,'-')||'hoy')+'.csv';
+        a.click();
+        toast('CSV de programados descargado (' + totalGuardadosProg + ' rutas nuevas) — subilo en pestaña Programados', 'ok');
+      }
     }
     toast(resultado || `${eventualesActuales.length} eventuales guardados ✓`, "ok");
     btn.innerHTML = "✓ Guardado";
@@ -588,12 +603,21 @@ async function buscar() {
       <td>${r.CLIENTE||r.cliente||"—"}</td>
       <td>${r.TIPOSERVICIO||r.tiposervicio||"—"}</td>
       <td>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="obs-input" value="${r.OBS||r.obs||""}" 
-            placeholder="Agregar observación…"
+        <div style="display:flex;align-items:center;gap:4px">
+          <select class="obs-input" data-row="${r._row}" onchange="onObsChange(this)" style="min-width:140px">
+            <option value="">— Seleccionar —</option>
+            <option value="TESORO" ${(r.OBS||r.obs||'')==='TESORO'?'selected':''}>Tesoro</option>
+            <option value="SAC" ${(r.OBS||r.obs||'')==='SAC'?'selected':''}>SAC</option>
+            <option value="ATM" ${(r.OBS||r.obs||'')==='ATM'?'selected':''}>ATM</option>
+            <option value="PROCESAMIENTO DE DATOS" ${(r.OBS||r.obs||'')==='PROCESAMIENTO DE DATOS'?'selected':''}>Procesamiento de datos</option>
+            <option value="OTRAS" ${(r.OBS||r.obs||r.obs||'').startsWith('OTRAS:')|| (r.OBS||r.obs||'') && !['TESORO','SAC','ATM','PROCESAMIENTO DE DATOS',''].includes(r.OBS||r.obs||'')?'selected':''}>Otras novedades</option>
+          </select>
+          <input class="obs-input" placeholder="Describir…" 
             data-row="${r._row}"
-            onkeydown="if(event.key==='Enter') guardarObs(this)">
-          <button class="btn btn-ghost btn-sm" onclick="guardarObs(this.previousElementSibling)" title="Guardar">✓</button>
+            value="${!(r.OBS||r.obs||'')||['TESORO','SAC','ATM','PROCESAMIENTO DE DATOS'].includes(r.OBS||r.obs||'')?'':((r.OBS||r.obs||'').replace(/^OTRAS:/,''))}"
+            style="display:${!(r.OBS||r.obs||'')||['TESORO','SAC','ATM','PROCESAMIENTO DE DATOS',''].includes(r.OBS||r.obs||'')?'none':'block'};min-width:120px"
+            onkeydown="if(event.key==='Enter') guardarObsTexto(this)">
+          <button class="btn btn-ghost btn-sm" onclick="guardarObsDesdeRow(this)" title="Guardar">✓</button>
         </div>
       </td>
     </tr>`).join("");
@@ -679,9 +703,7 @@ function procesarCSVProg(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const lines = e.target.result.replace(/
-/g,'').split('
-').filter(l => l.trim());
+      const lines = e.target.result.split('\n').map(l=>l.replace(/\r/,'')).filter(l => l.trim());
       const headers = lines[0].split(',').map(h => h.trim().replace(/^﻿/,''));
       programadosCSV = lines.slice(1).map(line => {
         const cols = line.split(',');
@@ -742,6 +764,49 @@ async function guardarProgramados() {
   }
 }
 
+// ── OBSERVACION DROPDOWN ─────────────────────────────────────
+function onObsChange(sel) {
+  const row = sel.parentElement;
+  const input = row.querySelector('input.obs-input');
+  if (sel.value === 'OTRAS') {
+    input.style.display = 'block';
+    input.focus();
+  } else {
+    input.style.display = 'none';
+    input.value = '';
+  }
+}
+
+function guardarObsDesdeRow(btn) {
+  const row = btn.parentElement;
+  const sel   = row.querySelector('select.obs-input');
+  const input = row.querySelector('input.obs-input');
+  const rowNum = sel.dataset.row;
+  let obs = sel.value;
+  if (obs === 'OTRAS') {
+    obs = input.value.trim() ? 'OTRAS:' + input.value.trim() : '';
+  }
+  guardarObsValor(rowNum, obs);
+}
+
+function guardarObsTexto(input) {
+  const row = input.parentElement;
+  const sel  = row.querySelector('select.obs-input');
+  const rowNum = sel.dataset.row;
+  const obs = input.value.trim() ? 'OTRAS:' + input.value.trim() : '';
+  guardarObsValor(rowNum, obs);
+}
+
+async function guardarObsValor(rowNum, obs) {
+  if (!rowNum) { toast('Error: fila no identificada', 'err'); return; }
+  try {
+    await apiPost({ action: 'updateObs', row: parseInt(rowNum), obs });
+    toast('Observación guardada ✓', 'ok');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
 // ── GUARDAR OBSERVACION ──────────────────────────────────────
 async function guardarObs(input) {
   const row = input.dataset.row;
@@ -769,28 +834,21 @@ function destroyChart(c) { if (c) { c.destroy(); } return null; }
 
 async function cargarDashboard() {
   const periodo = document.getElementById('db_periodo').value;
-  const mes     = document.getElementById('db_mes').value;
-
-  const params = {};
-  if (mes) { params.mes = mes; }
+  const fechaSel = document.getElementById('db_fecha')?.value || '';
 
   let rows;
   try {
-    rows = await api('getEvenTuales', params);
+    rows = await api('getEvenTuales');
   } catch(e) {
     toast('Error cargando datos: ' + e.message, 'err');
     return;
   }
 
-  // Filtrar por mes si se especificó
-  if (mes) {
-    const [yyyy, mm] = mes.split('-');
+  // Filtrar por fecha seleccionada
+  if (fechaSel) {
     rows = rows.filter(r => {
       const f = formatFecha(String(r.DIAFEC || r.diafec || ''));
-      // f es dd/mm/yyyy
-      const match = f.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})/);
-      if (match) return match[2] === mm && match[3] === yyyy;
-      return false;
+      return f === fechaSel;
     });
   }
 
@@ -844,18 +902,12 @@ async function cargarDashboard() {
   // ── Chart programados vs eventuales ─────────────────────────
   let totalProg = 0;
   try {
-    const progData = await api('getProgramados', mes ? { mes } : {});
-    // Filtrar por mes si aplica
+    const progData = await api('getProgramados');
     let progRows = progData;
-    if (mes) {
-      const [yyyy, mm] = mes.split('-');
-      progRows = progData.filter(r => {
-        const f = String(r.DIAFEC||'');
-        const match = f.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-        return match && match[2] === mm && match[3] === yyyy;
-      });
+    if (fechaSel) {
+      progRows = progData.filter(r => String(r.DIAFEC||'') === fechaSel);
     }
-    totalProg = progRows.length;
+    totalProg = progRows.reduce((s, r) => s + (parseInt(r.TOTAL)||0), 0);
   } catch(e) { totalProg = 0; }
 
   chartTipo = destroyChart(chartTipo);
@@ -933,16 +985,38 @@ async function cargarDashboard() {
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     if (t.dataset.tab === 'dashboard') {
-      // Set mes actual por defecto
-      const hoy = new Date();
-      const mesEl = document.getElementById('db_mes');
-      if (!mesEl.value) {
-        mesEl.value = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
-      }
-      setTimeout(cargarDashboard, 100);
+      cargarFechasDisponibles();
     }
   });
 });
+
+async function cargarFechasDisponibles() {
+  try {
+    const rows = await api('getEvenTuales');
+    // Obtener fechas únicas
+    const fechas = [...new Set(rows.map(r => {
+      const f = String(r.DIAFEC || r.diafec || '');
+      return f;
+    }).filter(f => f))].sort((a, b) => {
+      // Ordenar dd/mm/yyyy descendente
+      const pa = a.split('/'); const pb = b.split('/');
+      const da = pa[2]+pa[1]+pa[0]; const db2 = pb[2]+pb[1]+pb[0];
+      return db2.localeCompare(da);
+    });
+
+    const sel = document.getElementById('db_fecha');
+    sel.innerHTML = '<option value="">Todas las fechas</option>' +
+      fechas.map(f => `<option value="${f}">${f}</option>`).join('');
+
+    // Seleccionar la más reciente
+    if (fechas.length > 0) sel.value = fechas[0];
+
+    cargarDashboard();
+  } catch(e) {
+    console.error('Error cargando fechas:', e);
+    cargarDashboard();
+  }
+}
 
 // Init
 document.addEventListener("DOMContentLoaded", testConnection);
